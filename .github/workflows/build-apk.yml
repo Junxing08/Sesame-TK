@@ -1,0 +1,38 @@
+name: Build APK
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_SIGNING_KEY }}" > keystore_base64.txt
+          base64 -d keystore_base64.txt > app/keystore.jks  # 注意路径需匹配项目结构
+        shell: bash
+
+      - name: Build Release APK
+        uses: gradle/gradle-build-action@v3
+        with:
+          arguments: |
+            :app:assembleRelease
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/app/keystore.jks
+            -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_SIGNING_PASSWORD }}
+            -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }}
+            -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
+          build-root-directory: .  # 修改为项目根目录
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: app/build/outputs/apk/release/*.apk
