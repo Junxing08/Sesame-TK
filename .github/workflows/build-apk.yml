@@ -17,7 +17,7 @@ jobs:
       - name: Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_SIGNING_KEY }}" > keystore_base64.txt
-          base64 -d keystore_base64.txt > app/keystore.jks  # 注意路径需匹配项目结构
+          base64 -d keystore_base64.txt > app/keystore.jks  # 确保与项目路径一致
         shell: bash
 
       - name: Build Release APK
@@ -29,10 +29,16 @@ jobs:
             -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_SIGNING_PASSWORD }}
             -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }}
             -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
-          build-root-directory: .  # 修改为项目根目录
+          build-root-directory: .  # 如果是多模块项目可能需要调整
 
+      # 添加文件检查步骤（调试用）
+      - name: List build outputs
+        run: ls -R app/build/outputs/apk
+        shell: bash
+
+      # 修正上传路径
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/**/*.apk  # 使用双星号递归查找
