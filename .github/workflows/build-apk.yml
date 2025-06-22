@@ -19,7 +19,7 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_SIGNING_KEY }}" > keystore_base64.txt
           base64 -d keystore_base64.txt > keystore.jks
-          # 将密钥库移动到项目根目录（根据项目结构可能需要调整）
+          # 将密钥库移动到项目根目录
           mv keystore.jks ${{ github.workspace }}/keystore.jks
         shell: bash
 
@@ -34,19 +34,28 @@ jobs:
             assembleRelease
           build-root-directory: .
 
-      # 调试步骤：列出所有构建输出
-      - name: Find APK files
+      # 关键步骤：查找实际生成的 APK 路径
+      - name: Find and Move APK
         run: |
-          echo "搜索APK文件..."
-          find . -name "*.apk" -exec ls -lh {} \;
+          # 查找所有 release APK 文件
+          APK_PATH=$(find . -path '*/release/*.apk' ! -path '*/debug/*' -print -quit)
+          
+          # 如果找到，复制到固定位置
+          if [ -n "$APK_PATH" ]; then
+            echo "Found APK at: $APK_PATH"
+            mkdir -p apk-output
+            cp "$APK_PATH" apk-output/app-release.apk
+          else
+            echo "Error: No release APK found!"
+            find . -name "*.apk" || echo "No APK files found"
+            exit 1
+          fi
         shell: bash
 
-      # 通用APK上传（使用通配符匹配）
+      # 上传步骤 - 使用固定位置
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: |
-            **/build/outputs/apk/**/*.apk
-            **/build/outputs/bundle/**/*.apk
+          path: apk-output/app-release.apk
           if-no-files-found: error
